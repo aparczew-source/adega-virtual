@@ -192,63 +192,49 @@ function EditModal({ wine, onSave, onClose }) {
 }
 
 function SwipeDelete({ onDelete, children }) {
-  const [offsetX, setOffsetX] = useState(0);
-  const [transitioning, setTransitioning] = useState(false);
-  const startX = useRef(null);
-  const startY = useRef(null);
-  const isHoriz = useRef(null);
-  const BTN_W = 80;
+  const [offset, setOffset] = useState(0);
+  const [snap, setSnap] = useState(false);
+  const sx = useRef(null);
+  const sy = useRef(null);
+  const dir = useRef(null);
+  const BTN = 80;
 
-  const onTouchStart = (e) => {
-    startX.current = e.touches[0].clientX;
-    startY.current = e.touches[0].clientY;
-    isHoriz.current = null;
-    setTransitioning(false);
-  };
-
-  const onTouchMove = (e) => {
-    if (startX.current === null) return;
-    const dx = e.touches[0].clientX - startX.current;
-    const dy = Math.abs(e.touches[0].clientY - startY.current);
-    if (isHoriz.current === null) {
-      if (Math.abs(dx) > 6 && Math.abs(dx) > dy) isHoriz.current = true;
-      else if (dy > 6) { isHoriz.current = false; return; }
+  const ts = (e) => { sx.current = e.touches[0].clientX; sy.current = e.touches[0].clientY; dir.current = null; setSnap(false); };
+  const tm = (e) => {
+    if (sx.current === null) return;
+    const dx = e.touches[0].clientX - sx.current;
+    const dy = Math.abs(e.touches[0].clientY - sy.current);
+    if (dir.current === null) {
+      if (Math.abs(dx) > 5 && Math.abs(dx) > dy) dir.current = "h";
+      else if (dy > 5) { dir.current = "v"; return; }
       else return;
     }
-    if (!isHoriz.current) return;
+    if (dir.current !== "h") return;
     e.preventDefault();
-    const next = Math.min(0, Math.max(-BTN_W, offsetX + (e.touches[0].clientX - (startX.current + (offsetX === 0 ? 0 : 0)))));
-    const raw = offsetX + dx;
-    setOffsetX(Math.min(0, Math.max(-BTN_W, raw)));
-    startX.current = e.touches[0].clientX;
+    setOffset(o => Math.min(0, Math.max(-BTN, o + (e.touches[0].clientX - sx.current))));
+    sx.current = e.touches[0].clientX;
   };
-
-  const onTouchEnd = () => {
-    if (isHoriz.current !== true) return;
-    setTransitioning(true);
-    setOffsetX(offsetX < -BTN_W / 2 ? -BTN_W : 0);
+  const te = () => {
+    if (dir.current !== "h") return;
+    setSnap(true);
+    setOffset(o => o < -BTN / 2 ? -BTN : 0);
   };
-
-  const handleDelete = () => {
-    if (window.confirm("Remover este vinho?")) { setTransitioning(true); setOffsetX(0); onDelete(); }
-  };
+  const del = () => { if (window.confirm("Remover este vinho?")) { setSnap(true); setOffset(0); onDelete(); } };
 
   return (
-    <div style={{ position: "relative", marginBottom: 10, borderRadius: 12 }}>
-      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: BTN_W, background: "#1A0808", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", borderRadius: "0 12px 12px 0", zIndex: 0, overflow: "hidden" }}
-        onClick={handleDelete}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 26, lineHeight: 1, marginBottom: 6 }}>🍷</div>
-          <div style={{ fontSize: 8, color: "#C4956A", letterSpacing: 2, textTransform: "uppercase" }}>remover</div>
+    <div style={{ marginBottom: 10, borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ display: "flex", width: `calc(100% + ${BTN}px)`, transform: `translateX(${offset}px)`, transition: snap ? "transform 0.2s ease" : "none" }}
+        onTouchStart={ts} onTouchMove={tm} onTouchEnd={te}>
+        <div style={{ flex: "0 0 100%", minWidth: 0 }}>
+          {children}
         </div>
-      </div>
-      <div
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        style={{ transform: `translateX(${offsetX}px)`, transition: transitioning ? "transform 0.2s ease" : "none", position: "relative", zIndex: 1, borderRadius: 12, overflow: "hidden" }}
-      >
-        {children}
+        <div style={{ flex: `0 0 ${BTN}px`, background: "#1A0808", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", borderRadius: "0 12px 12px 0" }}
+          onClick={del}>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 24, lineHeight: 1, marginBottom: 4 }}>🍷</div>
+            <div style={{ fontSize: 8, color: "#C4956A", letterSpacing: 2, textTransform: "uppercase" }}>remover</div>
+          </div>
+        </div>
       </div>
     </div>
   );
