@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Adega Virtual"/>
+<title>Adega Virtual</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍷</text></svg>"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: #0D0A07; color: #E8DFD0; font-family: Georgia, serif; overscroll-behavior: none; -webkit-text-size-adjust: 100%; }
+input, textarea, button, select { font-family: inherit; }
+::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useCallback, useEffect } = React;
+
+
+const C = {
+  bg: "#0D0A07", surface: "rgba(255,255,255,0.025)", border: "rgba(232,223,208,0.07)",
+  gold: "#C4956A", goldDim: "rgba(196,149,106,0.12)", goldBorder: "rgba(196,149,106,0.22)",
+  text: "#E8DFD0", muted: "#7A6A5A", faint: "#3A2A1A", faintText: "#5A4A3A",
+  green: "#A8E6A3", greenBg: "rgba(168,230,163,0.1)",
+  yellow: "#FFD580", yellowBg: "rgba(255,213,128,0.1)",
+  red: "#F4A7A7", redBg: "rgba(244,167,167,0.1)",
+  purple: "#C8A8E8", purpleBg: "rgba(200,168,232,0.1)",
+  blue: "#90C8E8", blueBg: "rgba(144,200,232,0.1)",
+};
+const typeColors = { Tinto: "#C7603A", Branco: "#D4B96A", Espumante: "#8DB8C8", Rosé: "#E8A0A0" };
+const statusConfig = {
+  peak:  { color: C.green,  bg: C.greenBg,  label: "No ponto" },
+  drink: { color: C.yellow, bg: C.yellowBg, label: "Tomar agora" },
+  wait:  { color: C.red,    bg: C.redBg,    label: "Aguardar" },
+};
+const ratingConfig = {
+  Excelente:    { color: C.green,  bg: C.greenBg },
+  Bom:          { color: C.yellow, bg: C.yellowBg },
+  Interessante: { color: C.purple, bg: C.purpleBg },
+};
+
+// preço: valor médio de loja em R$, priceNote: fonte
+const INITIAL_WINES = [
+  { id: "a1",  name: "Nosotros 2012",                              producer: "Susana Balbo",             region: "Mendoza",             country: "Argentina",     type: "Tinto",  grape: "Malbec",                              vintage: "2012", price: 1000, priceNote: "R$ 900–1.100 (Via Vini / ML)",         rating: "Excelente",    status: "peak",  date: "2024-01-01", notes: "" },
+  { id: "a2",  name: "Sottano Reserva Malbec 2014",                producer: "Bodega Sottano",           region: "Mendoza",             country: "Argentina",     type: "Tinto",  grape: "Malbec",                              vintage: "2014", price: 175,  priceNote: "R$ 150–200 (várias lojas)",           rating: "Excelente",    status: "peak",  date: "2024-01-01", notes: "" },
+  { id: "a3",  name: "Mi Terruño Malbec 2020",                     producer: "Mi Terruño",               region: "Mendoza",             country: "Argentina",     type: "Tinto",  grape: "Malbec",                              vintage: "2020", price: 150,  priceNote: "R$ 120–180 (estimativa)",             rating: "Excelente",    status: "peak",  date: "2024-01-01", notes: "" },
+  { id: "a4",  name: "Petit Caro Malbec 2021",                     producer: "Caro",                     region: "Mendoza",             country: "Argentina",     type: "Tinto",  grape: "Malbec",                              vintage: "2021", price: 240,  priceNote: "R$ 200–280 (estimativa linha Caro)",  rating: "Bom",          status: "drink", date: "2024-01-01", notes: "" },
+  { id: "a5",  name: "Cocodrilo 2021",                             producer: "Caro",                     region: "Mendoza",             country: "Argentina",     type: "Tinto",  grape: "Corte (blend)",                       vintage: "2021", price: 400,  priceNote: "R$ 350–450 (estimativa linha Caro)",  rating: "Excelente",    status: "peak",  date: "2024-01-01", notes: "" },
+  { id: "a6",  name: "Antes y Después Cab. Franc/Malbec 2021",     producer: "Antes y Después",          region: "Mendoza",             country: "Argentina",     type: "Tinto",  grape: "Cabernet Franc / Malbec",             vintage: "2021", price: 300,  priceNote: "R$ 250–350 (estimativa)",             rating: "Excelente",    status: "peak",  date: "2024-01-01", notes: "" },
+  { id: "a7",  name: "Bressia Conjuro 2017",                       producer: "Bodega Bressia",           region: "Mendoza",             country: "Argentina",     type: "Tinto",  grape: "Blend Mendoza",                       vintage: "2017", price: 475,  priceNote: "R$ 400–550 (estimativa)",             rating: "Excelente",    status: "peak",  date: "2024-01-01", notes: "" },
+  { id: "a8",  name: "Cadus Assemblage 2019",                      producer: "Cadus",                    region: "Mendoza",             country: "Argentina",     type: "Tinto",  grape: "Malbec / Cabernet Sauvignon",         vintage: "2019", price: 350,  priceNote: "R$ 300–400 (estimativa)",             rating: "Excelente",    status: "peak",  date: "2024-01-01", notes: "" },
+  { id: "b1",  name: "Sassicaia 2018",                             producer: "Tenuta San Guido",         region: "Toscana",             country: "Itália",        type: "Tinto",  grape: "Cabernet Sauvignon",                  vintage: "2018", price: 890,  priceNote: "Preço confirmado",                    rating: "Excelente",    status: "peak",  date: "2025-03-10", notes: "Estrutura impecável, taninos sedosos." },
+  { id: "b2",  name: "Almaviva 2019",                              producer: "Almaviva",                 region: "Maipo Valley",        country: "Chile",         type: "Tinto",  grape: "Cab. Sauv. / Carmenère",              vintage: "2019", price: 720,  priceNote: "Preço confirmado",                    rating: "Excelente",    status: "peak",  date: "2025-01-20", notes: "Favorito absoluto. Complexidade excepcional." },
+  { id: "b3",  name: "Fanti Sassomangno 2021",                     producer: "Tenuta Fanti",             region: "Toscana",             country: "Itália",        type: "Tinto",  grape: "Sangiovese",                          vintage: "2021", price: 250,  priceNote: "R$ 200–300 (estimativa)",             rating: "Excelente",    status: "peak",  date: "2024-01-01", notes: "" },
+  { id: "b4",  name: "Tenute Rossetti Rosso Toscana",              producer: "Tenute Rossetti",          region: "Toscana",             country: "Itália",        type: "Tinto",  grape: "Blend Toscano",                       vintage: null,   price: 120,  priceNote: "R$ 100–150 (estimativa)",             rating: "Bom",          status: "drink", date: "2024-01-01", notes: "" },
+  { id: "b5",  name: "Il Bruciato 2023",                           producer: "Antinori / Guado al Tasso",region: "Toscana",             country: "Itália",        type: "Tinto",  grape: "Cabernet Sauvignon / Merlot / Syrah", vintage: "2023", price: 215,  priceNote: "R$ 180–250 (estimativa)",             rating: "Excelente",    status: "drink", date: "2024-01-01", notes: "" },
+  { id: "c1",  name: "Chablis 1er Cru Montée de Tonnerre 2020",    producer: "Raveneau",                 region: "Borgonha",            country: "França",        type: "Branco", grape: "Chardonnay",                          vintage: "2020", price: 340,  priceNote: "Preço confirmado",                    rating: "Excelente",    status: "peak",  date: "2025-02-14", notes: "Mineral, tenso. Elegante." },
+  { id: "c2",  name: "L'Esprit de Chevalier 2018",                 producer: "Domaine de Chevalier",     region: "Pessac-Léognan",      country: "França",        type: "Tinto",  grape: "Cabernet Sauvignon / Merlot",         vintage: "2018", price: 425,  priceNote: "R$ 350–500 (estimativa)",             rating: "Excelente",    status: "peak",  date: "2024-01-01", notes: "" },
+  { id: "c3",  name: "Château de la Gardine Cuvée la Garance 2024",producer: "Château de la Gardine",    region: "Châteauneuf-du-Pape", country: "França",        type: "Tinto",  grape: "Grenache / Syrah / Mourvèdre",        vintage: "2024", price: 700,  priceNote: "R$ 600–800 (estimativa)",             rating: "Excelente",    status: "wait",  date: "2024-01-01", notes: "" },
+  { id: "d1",  name: "Clio 2020",                                  producer: "Bodegas Juan Gil",         region: "Jumilla",             country: "Espanha",       type: "Tinto",  grape: "Monastrell / Cabernet Sauvignon",     vintage: "2020", price: 330,  priceNote: "R$ 280–380 (estimativa)",             rating: "Excelente",    status: "peak",  date: "2024-01-01", notes: "" },
+  { id: "e1",  name: "The Chocolate Block 2017",                   producer: "Boekenhoutskloof",         region: "Franschhoek",         country: "África do Sul", type: "Tinto",  grape: "Syrah / Grenache / Cabernet Sauvignon",vintage: "2017", price: 600,  priceNote: "R$ 550–650 (Mistral / Adega Nova)",   rating: "Interessante", status: "drink", date: "2024-01-01", notes: "Gosto particular, diferente. Chamou atenção." },
+  { id: "f1",  name: "Flowers Pinot Noir 2023",                    producer: "Flowers Winery",           region: "Sonoma Coast",        country: "EUA",           type: "Tinto",  grape: "Pinot Noir",                          vintage: "2023", price: 425,  priceNote: "R$ 350–500 (estimativa)",             rating: "Excelente",    status: "drink", date: "2024-01-01", notes: "" },
+  { id: "f2",  name: "Paul Hobbs Russian River Pinot Noir 2022",   producer: "Paul Hobbs",               region: "Russian River Valley", country: "EUA",          type: "Tinto",  grape: "Pinot Noir",                          vintage: "2022", price: 750,  priceNote: "R$ 600–900 (estimativa)",             rating: "Excelente",    status: "drink", date: "2024-01-01", notes: "" },
+  { id: "g1",  name: "Monumental Syrah 2022",                      producer: "Vinícola Brasília",        region: "Brasília",            country: "Brasil",        type: "Tinto",  grape: "Syrah",                               vintage: "2022", price: 420,  priceNote: "R$ 390–450 loja / R$ 800–950 restaurante (prod. limitada)", rating: "Excelente", status: "drink", date: "2024-01-01", notes: "" },
+  { id: "h1",  name: "Cloudy Bay Sauvignon Blanc 2023",            producer: "Cloudy Bay",               region: "Marlborough",         country: "Nova Zelândia", type: "Branco", grape: "Sauvignon Blanc",                     vintage: "2023", price: 180,  priceNote: "Preço confirmado",                    rating: "Bom",          status: "drink", date: "2025-04-05", notes: "Fresco, cítrico." },
+  { id: "i1",  name: "Esteva Douro",                               producer: "Esporão",                  region: "Douro",               country: "Portugal",      type: "Tinto",  grape: "Touriga Nacional / Tinta Roriz / Tinta Barroca", vintage: null, price: 80, priceNote: "R$ 70–90 (estimativa custo-benefício)", rating: "Bom", status: "drink", date: "2024-01-01", notes: "" },
+  { id: "i2",  name: "Dory",                                       producer: "Desconhecido",             region: "Douro",               country: "Portugal",      type: "Tinto",  grape: "Touriga Nacional / Tinta Roriz / Merlot / Syrah", vintage: null, price: 90, priceNote: "R$ 80–100 (estimativa)", rating: "Bom", status: "drink", date: "2024-01-01", notes: "" },
+  { id: "j1",  name: "Udu Coroa Azul Cab. Sauv./Syrah Grand Reserva 2021", producer: "Udu",            region: "Chile",               country: "Chile",         type: "Tinto",  grape: "Cabernet Sauvignon / Syrah",          vintage: "2021", price: 180,  priceNote: "R$ 150–220 (estimativa)",             rating: "Bom",          status: "drink", date: "2024-01-01", notes: "" },
+];
+
+const INITIAL_WISHLIST = [
+  { id: "w1", name: "Cooper & Thief Red Wine Blend 2016",  producer: "Cooper & Thief",      region: "Califórnia",       country: "EUA",     type: "Tinto",  grape: "Red Blend (Bourbon barrel-aged)", vintage: "2016", costBenefit: false, notes: "" },
+  { id: "w2", name: "Esteva Douro",                        producer: "Esporão",             region: "Douro",            country: "Portugal",type: "Tinto",  grape: "Touriga Nacional / Tinta Roriz",  vintage: null,   costBenefit: true,  notes: "" },
+  { id: "w3", name: "Dory",                                producer: "Desconhecido",        region: "Douro",            country: "Portugal",type: "Tinto",  grape: "Touriga Nacional / Tinta Roriz / Merlot / Syrah", vintage: null, costBenefit: true, notes: "" },
+  { id: "w4", name: "Domaine Alary La Gerbaude",           producer: "Domaine Alary",       region: "Cairanne / Rhône", country: "França",  type: "Tinto",  grape: "Grenache / Syrah",                vintage: null,   costBenefit: false, notes: "" },
+  { id: "w5", name: "Angheben 2018",                       producer: "Angheben",            region: "Desconhecida",     country: "—",       type: "Tinto",  grape: "Desconhecida",                    vintage: "2018", costBenefit: false, notes: "" },
+  { id: "w6", name: "Flor de Nelas",                       producer: "Desconhecido",        region: "Dão",              country: "Portugal",type: "Tinto",  grape: "Touriga Nacional",                vintage: null,   costBenefit: false, notes: "" },
+  { id: "w7", name: "Amarone della Valpolicella",          producer: "Tommasi",             region: "Valpolicella",     country: "Itália",  type: "Tinto",  grape: "Corvina / Rondinella / Molinara",  vintage: null,   costBenefit: false, notes: "" },
+  { id: "w8", name: "Brunello di Montalcino 2017",         producer: "Tenuta La Fuga",      region: "Toscana",          country: "Itália",  type: "Tinto",  grape: "Sangiovese Grosso (Brunello)",     vintage: "2017", costBenefit: false, notes: "Safra excepcional em Montalcino." },
+];
+
+const buildProfileContext = (wines) => {
+  if (!wines.length) return "Sem histórico ainda.";
+  const grapes = [...new Set(wines.map(w => w.grape))].join(", ");
+  const regions = [...new Set(wines.map(w => w.region))].join(", ");
+  return `Histórico: ${wines.length} vinhos. Excelentes: ${wines.filter(w => w.rating === "Excelente").length}. Uvas: ${grapes}. Regiões: ${regions}.`;
+};
+
+const IDENTIFY_PROMPT = (ctx) => `Você é um sommelier experiente. Analise esta imagem de vinho.
+PERFIL: Tintos estruturados, Malbec argentino, Cab Sauv, Carmenère, Chardonnay mineral, Douro, Borgonha, Toscana. ${ctx}
+Retorne APENAS JSON (objeto único):
+{"name":"","producer":"","region":"","country":"","type":"Tinto ou Branco ou Espumante ou Rosé","grape":"","vintage":"","priceRetailMin":0,"priceRetailMax":0,"priceRestaurantMin":0,"priceRestaurantMax":0,"priceNote":"fonte ou observação","status":"drink ou peak ou wait","drinkWindow":"","sommelierNote":""}`;
+
+const SCAN_PROMPT = (ctx) => `Você é um sommelier experiente. Analise esta foto de prateleira ou carta de vinhos.
+PERFIL: Tintos estruturados, Malbec argentino, Cab Sauv, Carmenère, Chardonnay mineral, Douro, Borgonha, Toscana. Faixa normal R$150-400, especial R$400-900. ${ctx}
+Identifique TODOS os vinhos. Retorne APENAS JSON array:
+[{"name":"","producer":"","region":"","grape":"","vintage":"","type":"","priceEstimate":"","menuPrice":null,"status":"drink ou peak ou wait","drinkWindow":"","score":null,"matchScore":null,"matchReason":"","recommendation":"Recomendar ou Neutro ou Evitar","valueRating":"Excelente ou Bom ou Regular ou Caro"}]
+Ordene do mais recomendado ao menos.`;
+
+const PRICE_PROMPT = (wine) => `Você é um sommelier experiente. Pesquise o preço de mercado deste vinho no Brasil.
+Vinho: ${wine.name || ""} ${wine.vintage || ""}
+Produtor: ${wine.producer || ""}
+Região: ${wine.region || ""}, ${wine.country || ""}
+Uva: ${wine.grape || ""}
+
+Retorne APENAS JSON (objeto único):
+{"priceRetailMin":0,"priceRetailMax":0,"priceRestaurantMin":0,"priceRestaurantMax":0,"priceNote":"fonte ou observação","status":"drink ou peak ou wait","drinkWindow":"","sommelierNote":"2 frases sobre o vinho"}
+Preços em R$. retail = lojas brasileiras. restaurant = restaurantes (tipicamente 2-3x o varejo).`;
+function fmtDate(iso) { if (!iso) return ""; const d = new Date(iso); return d.toLocaleDateString("pt-BR", { month: "short", year: "numeric" }); }
+function fmtPrice(v) { return v ? `R$ ${Number(v).toLocaleString("pt-BR")}` : ""; }
+
+function Tag({ children, color, bg }) {
+  return <span style={{ fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", color, background: bg || color + "18", border: `1px solid ${color}35`, borderRadius: 20, padding: "2px 8px", whiteSpace: "nowrap" }}>{children}</span>;
+}
+
+function Btn({ children, onClick, variant = "primary", disabled, full, small }) {
+  const v = {
+    primary:   { background: C.gold,    color: "#0D0A07" },
+    secondary: { background: C.goldDim, color: C.gold,   border: `1px solid ${C.goldBorder}` },
+    ghost:     { background: "none",    color: C.muted,  border: `1px solid ${C.border}` },
+    green:     { background: C.greenBg, color: C.green,  border: `1px solid ${C.green}35` },
+    danger:    { background: C.redBg,   color: C.red,    border: `1px solid ${C.red}35` },
+  };
+  return <button onClick={disabled ? undefined : onClick} style={{ border: "none", borderRadius: 10, fontSize: small ? 11 : 13, cursor: disabled ? "default" : "pointer", fontFamily: "inherit", letterSpacing: 0.5, padding: small ? "7px 12px" : "13px 20px", opacity: disabled ? 0.5 : 1, width: full ? "100%" : undefined, ...v[variant] }}>{children}</button>;
+}
+
+// ── Edit Modal ───────────────────────────────────────────────────────────────
+function EditModal({ wine, onSave, onClose }) {
+  const [form, setForm] = useState({ ...wine });
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+      <div style={{ background: "#1A1410", borderRadius: "16px 16px 0 0", padding: 24, width: "100%", maxWidth: 430, maxHeight: "85vh", overflowY: "auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div style={{ fontSize: 14, color: C.gold }}>Editar vinho</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 20, lineHeight: 1 }}>×</button>
+        </div>
+
+        {[
+          { label: "Nome", key: "name" },
+          { label: "Produtor", key: "producer" },
+          { label: "Região", key: "region" },
+          { label: "País", key: "country" },
+          { label: "Uva(s)", key: "grape" },
+          { label: "Safra", key: "vintage" },
+        ].map(({ label, key }) => (
+          <div key={key} style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>{label}</div>
+            <input value={form[key] || ""} onChange={e => set(key, e.target.value)} style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+          </div>
+        ))}
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>Preço (R$)</div>
+          <input type="number" value={form.price || ""} onChange={e => set("price", e.target.value ? Number(e.target.value) : null)} placeholder="Ex: 350" style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+          {form.priceNote && <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontStyle: "italic" }}>Ref: {form.priceNote}</div>}
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>Avaliação</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {["Excelente", "Bom", "Interessante"].map(r => { const rc = ratingConfig[r]; return <button key={r} onClick={() => set("rating", r)} style={{ flex: 1, padding: "9px 4px", background: form.rating === r ? rc.bg : C.surface, border: `1px solid ${form.rating === r ? rc.color : C.border}`, borderRadius: 8, color: form.rating === r ? rc.color : C.muted, cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{r}</button>; })}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>Momento</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {[["drink","Tomar agora"],["peak","No ponto"],["wait","Aguardar"]].map(([k, label]) => { const sc = statusConfig[k]; return <button key={k} onClick={() => set("status", k)} style={{ flex: 1, padding: "9px 4px", background: form.status === k ? sc.bg : C.surface, border: `1px solid ${form.status === k ? sc.color : C.border}`, borderRadius: 8, color: form.status === k ? sc.color : C.muted, cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>{label}</button>; })}
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>Notas pessoais</div>
+          <textarea value={form.notes || ""} onChange={e => set("notes", e.target.value)} style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 13, fontFamily: "inherit", resize: "none", minHeight: 72, boxSizing: "border-box" }} />
+        </div>
+
+        <div style={{ display: "flex", gap: 8 }}>
+          <Btn onClick={onClose} variant="ghost" full>Cancelar</Btn>
+          <Btn onClick={() => onSave(form)} full>Salvar</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function WineCard({ wine, expanded, onExpand, onEdit }) {
+  const sc = statusConfig[wine.status] || statusConfig.drink;
+  const rc = ratingConfig[wine.rating] || ratingConfig["Bom"];
+  return (
+    <div style={{ background: expanded ? C.goldDim : C.surface, border: `1px solid ${expanded ? C.goldBorder : C.border}`, borderRadius: 12, padding: 16, marginBottom: 10, transition: "all 0.2s" }}>
+      <div onClick={onExpand} style={{ cursor: "pointer" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div style={{ flex: 1, marginRight: 12 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+              <Tag color={typeColors[wine.type] || C.gold}>{wine.type}</Tag>
+              <Tag color={sc.color} bg={sc.bg}>⬤ {sc.label}</Tag>
+              <Tag color={rc.color} bg={rc.bg}>{wine.rating}</Tag>
+            </div>
+            <div style={{ fontSize: 15, color: C.text, marginBottom: 2, lineHeight: 1.3 }}>{wine.name}</div>
+            <div style={{ fontSize: 11, color: C.muted }}>{wine.region}, {wine.country} · {wine.grape}</div>
+          </div>
+          <div style={{ textAlign: "right", minWidth: 70 }}>
+            <div style={{ fontSize: 11, color: C.faintText }}>{fmtDate(wine.date)}</div>
+            {wine.price && <div style={{ fontSize: 13, color: C.gold, marginTop: 3 }}>R${wine.price}</div>}
+          </div>
+        </div>
+        {expanded && (
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.border}` }}>
+            {wine.notes && <div style={{ fontSize: 12, color: "#B0A090", lineHeight: 1.7, fontStyle: "italic", marginBottom: 10 }}>"{wine.notes}"</div>}
+            {wine.sommelierNote && <div style={{ fontSize: 12, color: C.text, lineHeight: 1.7, padding: "10px 12px", background: C.goldDim, borderRadius: 8, border: `1px solid ${C.goldBorder}`, marginBottom: 10 }}>{wine.sommelierNote}</div>}
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>{wine.producer}{wine.vintage ? ` · Safra ${wine.vintage}` : ""}</div>
+            {wine.priceNote && <div style={{ fontSize: 10, color: C.faintText, fontStyle: "italic", marginBottom: 12 }}>Ref preço: {wine.priceNote}</div>}
+          </div>
+        )}
+      </div>
+      {expanded && (
+        <div style={{ paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+          <Btn onClick={(e) => { e.stopPropagation(); onEdit(wine); }} variant="secondary" small>✏️ Editar</Btn>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WishCard({ wine, expanded, onExpand, onPromote }) {
+  return (
+    <div style={{ background: expanded ? "rgba(144,200,232,0.06)" : C.surface, border: `1px solid ${expanded ? "rgba(144,200,232,0.2)" : C.border}`, borderRadius: 12, padding: 16, marginBottom: 10 }}>
+      <div onClick={onExpand} style={{ cursor: "pointer" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div style={{ flex: 1, marginRight: 12 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+              <Tag color={typeColors[wine.type] || C.gold}>{wine.type}</Tag>
+              {wine.costBenefit && <Tag color={C.blue} bg={C.blueBg}>💰 Custo-benefício</Tag>}
+            </div>
+            <div style={{ fontSize: 15, color: C.text, marginBottom: 2, lineHeight: 1.3 }}>{wine.name}</div>
+            <div style={{ fontSize: 11, color: C.muted }}>{wine.region}, {wine.country} · {wine.grape}</div>
+          </div>
+          <div style={{ fontSize: 18, color: C.faint }}>○</div>
+        </div>
+        {expanded && wine.notes && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+            <div style={{ fontSize: 12, color: "#B0A090", lineHeight: 1.6, fontStyle: "italic", marginBottom: 8 }}>"{wine.notes}"</div>
+            <div style={{ fontSize: 11, color: C.muted }}>{wine.producer}{wine.vintage ? ` · Safra ${wine.vintage}` : ""}</div>
+          </div>
+        )}
+      </div>
+      {expanded && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+          <Btn onClick={() => onPromote(wine)} variant="green" full>✓ Provei — mover para Adega</Btn>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScanResultCard({ wine, onRegister }) {
+  const [open, setOpen] = useState(false);
+  const rec = wine.recommendation || "Neutro";
+  const sc = statusConfig[wine.status] || statusConfig.drink;
+  const recColor = { Recomendar: C.green, Neutro: C.yellow, Evitar: C.red }[rec] || C.yellow;
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${rec === "Recomendar" ? C.green + "33" : C.border}`, borderRadius: 12, padding: 16, marginBottom: 10 }}>
+      <div onClick={() => setOpen(!open)} style={{ cursor: "pointer" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div style={{ flex: 1, marginRight: 12 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+              <Tag color={typeColors[wine.type] || C.gold}>{wine.type}</Tag>
+              <Tag color={recColor}>{rec === "Recomendar" ? "✓ " + rec : rec}</Tag>
+              {wine.matchScore && <Tag color={C.gold} bg={C.goldDim}>Match {wine.matchScore}</Tag>}
+            </div>
+            <div style={{ fontSize: 15, color: C.text, marginBottom: 2 }}>{wine.name}</div>
+            <div style={{ fontSize: 11, color: C.muted }}>{wine.region} · {wine.grape} · {wine.vintage}</div>
+          </div>
+          <div style={{ textAlign: "right", minWidth: 70 }}>
+            <div style={{ fontSize: 12, color: C.gold }}>{wine.menuPrice || wine.priceEstimate || "—"}</div>
+            {wine.valueRating && <div style={{ fontSize: 9, marginTop: 3, color: wine.valueRating === "Excelente" ? C.green : wine.valueRating === "Bom" ? C.yellow : C.red }}>{wine.valueRating}</div>}
+          </div>
+        </div>
+        {open && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+              <Tag color={sc.color} bg={sc.bg}>⬤ {wine.drinkWindow || sc.label}</Tag>
+              {wine.score && <Tag color={C.muted}>Crítica: {wine.score} pts</Tag>}
+            </div>
+            {wine.matchReason && <div style={{ fontSize: 12, color: "#B0A090", lineHeight: 1.6, fontStyle: "italic" }}>"{wine.matchReason}"</div>}
+          </div>
+        )}
+      </div>
+      {onRegister && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+          <Btn onClick={() => onRegister(wine)} variant="secondary" full>＋ Adicionar à Adega</Btn>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PriceConfirm({ identified, registerData, setRegisterData }) {
+  const hasEstimate = identified.priceRetailMin > 0;
+  const [editing, setEditing] = useState(false);
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>Preço</div>
+      {hasEstimate && !editing ? (
+        <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14 }}>
+          <div style={{ fontSize: 10, color: C.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Estimativa do Sommelier</div>
+          <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
+            <div style={{ flex: 1, padding: "10px 12px", background: C.goldDim, border: `1px solid ${C.goldBorder}`, borderRadius: 8 }}>
+              <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>Loja</div>
+              <div style={{ fontSize: 14, color: C.gold }}>{fmtPrice(identified.priceRetailMin)} – {fmtPrice(identified.priceRetailMax)}</div>
+            </div>
+            <div style={{ flex: 1, padding: "10px 12px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8 }}>
+              <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>Restaurante</div>
+              <div style={{ fontSize: 14, color: C.text }}>{fmtPrice(identified.priceRestaurantMin)} – {fmtPrice(identified.priceRestaurantMax)}</div>
+            </div>
+          </div>
+          {identified.priceNote && <div style={{ fontSize: 11, color: C.muted, fontStyle: "italic", marginBottom: 10 }}>{identified.priceNote}</div>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => setRegisterData(d => ({ ...d, price: identified.priceRetailMin }))} style={{ flex: 1, padding: "9px", background: registerData.price === identified.priceRetailMin ? C.greenBg : "none", border: `1px solid ${registerData.price === identified.priceRetailMin ? C.green : C.border}`, borderRadius: 8, color: registerData.price === identified.priceRetailMin ? C.green : C.muted, cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>✓ Confirmar</button>
+            <button onClick={() => setEditing(true)} style={{ flex: 1, padding: "9px", background: "none", border: `1px solid ${C.border}`, borderRadius: 8, color: C.muted, cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Corrigir</button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          {hasEstimate && <button onClick={() => setEditing(false)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 11, padding: 0, marginBottom: 8 }}>← Usar estimativa</button>}
+          <input type="number" value={registerData.price || ""} onChange={e => setRegisterData(d => ({ ...d, price: e.target.value }))} placeholder="R$ preço pago (opcional)" style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px", color: C.text, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [tab, setTab] = useState("cellar");
+  const [wines, setWines] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
+  const [expanded, setExpanded] = useState(null);
+  const [editWine, setEditWine] = useState(null);
+  const [filter, setFilter] = useState({ type: "all", region: "all", rating: "all" });
+  const [wishFilter, setWishFilter] = useState("all");
+  const [scanMode, setScanMode] = useState(null);
+  const [image, setImage] = useState(null);
+  const [imageBase64, setImageBase64] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [results, setResults] = useState(null);
+  const [identified, setIdentified] = useState(null);
+  const [registerStep, setRegisterStep] = useState(null);
+  const [registerData, setRegisterData] = useState({});
+  const [promoteWine, setPromoteWine] = useState(null);
+  const [showAllResults, setShowAllResults] = useState(false);
+  const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
+  const fileRef = useRef();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const sw  = await window.storage.get("adega-wines-v3");
+        const swl = await window.storage.get("adega-wishlist-v2");
+        setWines(sw?.value    ? JSON.parse(sw.value)  : INITIAL_WINES);
+        setWishlist(swl?.value ? JSON.parse(swl.value) : INITIAL_WISHLIST);
+      } catch { setWines(INITIAL_WINES); setWishlist(INITIAL_WISHLIST); }
+    })();
+  }, []);
+
+  const saveWines    = useCallback(async (list) => { try { await window.storage.set("adega-wines-v3",    JSON.stringify(list)); } catch {} setWines(list); }, []);
+  const saveWishlist = useCallback(async (list) => { try { await window.storage.set("adega-wishlist-v2", JSON.stringify(list)); } catch {} setWishlist(list); }, []);
+
+  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+
+  const addWine = useCallback(async (wine) => {
+    await saveWines([{ ...wine, id: genId(), date: new Date().toISOString().slice(0, 10) }, ...wines]);
+    showToast("Vinho adicionado à adega ✓");
+    setScanMode(null); setImage(null); setImageBase64(null);
+    setResults(null); setIdentified(null); setRegisterStep(null); setRegisterData({});
+    setPromoteWine(null); setTab("cellar");
+  }, [wines, saveWines]);
+
+  const updateWine = useCallback(async (updated) => {
+    const list = wines.map(w => w.id === updated.id ? updated : w);
+    await saveWines(list);
+    setEditWine(null);
+    showToast("Vinho atualizado ✓");
+  }, [wines, saveWines]);
+
+  const promoteFromWishlist = useCallback(async (wine, rating, notes) => {
+    await saveWishlist(wishlist.filter(w => w.id !== wine.id));
+    await addWine({ ...wine, rating, notes });
+  }, [wishlist, saveWishlist, addWine]);
+
+  const types   = ["all", ...new Set(wines.map(w => w.type).filter(Boolean))];
+  const regions = ["all", ...new Set(wines.map(w => w.region).filter(Boolean))];
+  const ratings = ["all", "Excelente", "Bom", "Interessante"];
+  const filtered     = wines.filter(w => (filter.type === "all" || w.type === filter.type) && (filter.region === "all" || w.region === filter.region) && (filter.rating === "all" || w.rating === filter.rating));
+  const filteredWish = wishFilter === "custo" ? wishlist.filter(w => w.costBenefit) : wishlist;
+  const profileCtx   = buildProfileContext(wines);
+
+  const handleFile = useCallback((file) => {
+    if (!file) return;
+    setImage(URL.createObjectURL(file)); setResults(null); setIdentified(null); setError(null);
+    const r = new FileReader(); r.onload = (e) => setImageBase64(e.target.result.split(",")[1]); r.readAsDataURL(file);
+  }, []);
+
+  const callClaude = useCallback(async (prompt) => {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: [
+        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageBase64 } },
+        { type: "text", text: prompt }
+      ]}] })
+    });
+    const data = await res.json();
+    const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+    return JSON.parse(text.replace(/```json|```/g, "").trim());
+  }, [imageBase64]);
+
+  const analyzeShelf = useCallback(async () => {
+    setLoading(true); setError(null);
+    try { setResults(await callClaude(SCAN_PROMPT(profileCtx))); }
+    catch { setError("Não consegui interpretar a imagem. Tente uma foto mais nítida."); }
+    setLoading(false);
+  }, [callClaude, profileCtx]);
+
+  const identifyBottle = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      const p = await callClaude(IDENTIFY_PROMPT(profileCtx));
+      setIdentified(p);
+      setRegisterData({ ...p, price: p.priceRetailMin || "" });
+      setRegisterStep("confirm");
+    } catch { setError("Não consegui identificar. Tente outra foto."); }
+    setLoading(false);
+  }, [callClaude, profileCtx]);
+
+  const callClaudeText = useCallback(async (prompt) => {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 500, messages: [{ role: "user", content: prompt }] })
+    });
+    const data = await res.json();
+    const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+    return JSON.parse(text.replace(/```json|```/g, "").trim());
+  }, []);
+
+  const lookupPrice = useCallback(async () => {
+    if (!registerData.name) return;
+    setLoading(true); setError(null);
+    try {
+      const p = await callClaudeText(PRICE_PROMPT(registerData));
+      setRegisterData(d => ({ ...d, priceRetailMin: p.priceRetailMin, priceRetailMax: p.priceRetailMax, priceRestaurantMin: p.priceRestaurantMin, priceRestaurantMax: p.priceRestaurantMax, priceNote: p.priceNote, status: p.status || "drink", sommelierNote: p.sommelierNote }));
+      setRegisterStep("priceConfirm");
+    } catch { setError("Não consegui pesquisar o preço. Você pode inserir manualmente."); }
+    setLoading(false);
+  }, [registerData, callClaudeText]);
+
+  const resetScan = () => { setScanMode(null); setImage(null); setImageBase64(null); setResults(null); setIdentified(null); setRegisterStep(null); setRegisterData({}); setError(null); setShowAllResults(false); };
+
+  const FilterBar = ({ options, value, onChange, label }) => (
+    <div style={{ marginBottom: 10 }}>
+      <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        {options.map(o => <button key={o} onClick={() => onChange(o)} style={{ background: value === o ? C.goldDim : "none", border: `1px solid ${value === o ? C.goldBorder : C.border}`, borderRadius: 20, padding: "4px 12px", fontSize: 11, color: value === o ? C.gold : C.muted, cursor: "pointer", fontFamily: "inherit" }}>{o === "all" ? "Todos" : o}</button>)}
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "'Georgia','Times New Roman',serif", maxWidth: 430, margin: "0 auto", paddingBottom: 70 }}>
+
+      {editWine && <EditModal wine={editWine} onSave={updateWine} onClose={() => setEditWine(null)} />}
+      {toast && <div style={{ position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)", background: C.green, color: "#0D0A07", padding: "10px 20px", borderRadius: 10, fontSize: 13, zIndex: 100, fontFamily: "inherit", whiteSpace: "nowrap" }}>{toast}</div>}
+
+      {/* Header */}
+      <div style={{ padding: "32px 24px 16px", borderBottom: `1px solid ${C.border}`, background: "linear-gradient(180deg,rgba(180,120,60,0.07) 0%,transparent 100%)" }}>
+        <div style={{ fontSize: 10, letterSpacing: 4, color: "#A08060", textTransform: "uppercase", marginBottom: 6 }}>Inteligência Vínica</div>
+        <div style={{ fontSize: 28, lineHeight: 1.1 }}>Adega<br /><span style={{ color: C.gold }}>Virtual</span></div>
+        <div style={{ display: "flex", gap: 24, marginTop: 20 }}>
+          {[{ label: "Rótulos", value: wines.length }, { label: "Excelentes", value: wines.filter(w => w.rating === "Excelente").length }, { label: "Para provar", value: wishlist.length }, { label: "Regiões", value: new Set(wines.map(w => w.region).filter(Boolean)).size }].map(s => (
+            <div key={s.label}><div style={{ fontSize: 20, color: C.text }}>{s.value}</div><div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginTop: 2 }}>{s.label}</div></div>
+          ))}
+        </div>
+      </div>
+
+      {/* Nav */}
+      <div style={{ display: "flex", padding: "0 16px", borderBottom: `1px solid ${C.border}`, overflowX: "auto" }}>
+        {[["cellar","Adega"],["wish","Para Provar"],["profile","Perfil"],["scan","📷 Scan"]].map(([t, label]) => (
+          <button key={t} onClick={() => { setTab(t); if (t !== "scan") resetScan(); }} style={{ background: "none", border: "none", cursor: "pointer", padding: "14px 0", marginRight: 20, fontSize: 11, letterSpacing: 2, textTransform: "uppercase", color: tab === t ? C.gold : C.faint, borderBottom: tab === t ? `1px solid ${C.gold}` : "1px solid transparent", whiteSpace: "nowrap" }}>{label}</button>
+        ))}
+      </div>
+
+      {/* ── ADEGA ── */}
+      {tab === "cellar" && (
+        <div style={{ padding: "20px 24px" }}>
+          <FilterBar options={types}   value={filter.type}   onChange={v => setFilter(f => ({ ...f, type: v }))}   label="Tipo" />
+          <FilterBar options={regions} value={filter.region} onChange={v => setFilter(f => ({ ...f, region: v }))} label="Região" />
+          <FilterBar options={ratings} value={filter.rating} onChange={v => setFilter(f => ({ ...f, rating: v }))} label="Avaliação" />
+          <div style={{ height: 1, background: C.border, margin: "12px 0 16px" }} />
+          <div style={{ fontSize: 10, color: C.muted, letterSpacing: 3, textTransform: "uppercase", marginBottom: 14 }}>{filtered.length} rótulo{filtered.length !== 1 ? "s" : ""}</div>
+          {filtered.map(w => <WineCard key={w.id} wine={w} expanded={expanded === w.id} onExpand={() => setExpanded(expanded === w.id ? null : w.id)} onEdit={setEditWine} />)}
+        </div>
+      )}
+
+      {/* ── PARA PROVAR ── */}
+      {tab === "wish" && (
+        <div style={{ padding: "20px 24px" }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            {[["all","Todos"],["custo","💰 Custo-benefício"]].map(([v, label]) => (
+              <button key={v} onClick={() => setWishFilter(v)} style={{ background: wishFilter === v ? C.goldDim : "none", border: `1px solid ${wishFilter === v ? C.goldBorder : C.border}`, borderRadius: 20, padding: "5px 14px", fontSize: 11, color: wishFilter === v ? C.gold : C.muted, cursor: "pointer", fontFamily: "inherit" }}>{label}</button>
+            ))}
+          </div>
+          {promoteWine && (
+            <div style={{ background: C.goldDim, border: `1px solid ${C.goldBorder}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
+              <div style={{ fontSize: 13, color: C.text, marginBottom: 4 }}>{promoteWine.name}</div>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>Como foi?</div>
+              <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+                {["Excelente","Bom","Interessante"].map(r => { const rc = ratingConfig[r]; return <button key={r} onClick={() => setRegisterData(d => ({ ...d, rating: r }))} style={{ flex: 1, padding: "10px 4px", background: registerData.rating === r ? rc.bg : C.surface, border: `1px solid ${registerData.rating === r ? rc.color : C.border}`, borderRadius: 10, color: registerData.rating === r ? rc.color : C.muted, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>{r}</button>; })}
+              </div>
+              <textarea value={registerData.notes || ""} onChange={e => setRegisterData(d => ({ ...d, notes: e.target.value }))} placeholder="Nota pessoal (opcional)..." style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 12px", color: C.text, fontSize: 12, fontFamily: "inherit", resize: "none", minHeight: 60, boxSizing: "border-box", marginBottom: 10 }} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn onClick={() => { setPromoteWine(null); setRegisterData({}); }} variant="ghost" full>Cancelar</Btn>
+                <Btn onClick={() => promoteFromWishlist(promoteWine, registerData.rating, registerData.notes)} disabled={!registerData.rating} full>Salvar na Adega</Btn>
+              </div>
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: C.muted, letterSpacing: 3, textTransform: "uppercase", marginBottom: 14 }}>{filteredWish.length} vinho{filteredWish.length !== 1 ? "s" : ""} na lista</div>
+          {filteredWish.map(w => <WishCard key={w.id} wine={w} expanded={expanded === w.id} onExpand={() => { setExpanded(expanded === w.id ? null : w.id); setPromoteWine(null); setRegisterData({}); }} onPromote={(wine) => { setPromoteWine(wine); setRegisterData({}); setExpanded(w.id); }} />)}
+        </div>
+      )}
+
+      {/* ── PERFIL ── */}
+      {tab === "profile" && (
+        <div style={{ padding: "20px 24px" }}>
+          <div style={{ fontSize: 10, color: C.muted, letterSpacing: 3, textTransform: "uppercase", marginBottom: 20 }}>Perfil gerado pela sua adega</div>
+          {wines.length === 0 ? <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: "40px 0" }}>Adicione vinhos para gerar seu perfil.</div> : (
+            <>
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>Uvas mais frequentes</div>
+                {Object.entries(wines.reduce((a, w) => { if (w.grape) a[w.grape] = (a[w.grape] || 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([grape, count]) => (
+                  <div key={grape} style={{ marginBottom: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}><span style={{ fontSize: 13, color: C.text }}>{grape}</span><span style={{ fontSize: 11, color: C.muted }}>{count}×</span></div>
+                    <div style={{ height: 3, background: C.border, borderRadius: 2 }}><div style={{ height: 3, background: C.gold, borderRadius: 2, width: `${(count / wines.length) * 100}%` }} /></div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>Regiões</div>
+                {Object.entries(wines.reduce((a, w) => { if (w.region) a[w.region] = (a[w.region] || 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([region, count]) => (
+                  <div key={region} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: `1px solid ${C.border}` }}>
+                    <span style={{ fontSize: 13, color: C.text }}>{region}</span><Tag color={C.gold} bg={C.goldDim}>{count}×</Tag>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>Por tipo</div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {Object.entries(wines.reduce((a, w) => { if (w.type) a[w.type] = (a[w.type] || 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
+                    <div key={type} style={{ padding: "10px 16px", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, textAlign: "center" }}><div style={{ fontSize: 20, color: typeColors[type] || C.gold }}>{count}</div><div style={{ fontSize: 10, color: C.muted, letterSpacing: 1, textTransform: "uppercase", marginTop: 2 }}>{type}</div></div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>Por avaliação</div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {["Excelente","Bom","Interessante"].map(r => { const count = wines.filter(w => w.rating === r).length; const rc = ratingConfig[r]; return count > 0 ? <div key={r} style={{ padding: "10px 16px", background: rc.bg, border: `1px solid ${rc.color}35`, borderRadius: 10, textAlign: "center" }}><div style={{ fontSize: 20, color: rc.color }}>{count}</div><div style={{ fontSize: 10, color: rc.color, opacity: 0.8, letterSpacing: 1, textTransform: "uppercase", marginTop: 2 }}>{r}</div></div> : null; })}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── SCAN ── */}
+      {tab === "scan" && (
+        <div style={{ padding: "24px" }}>
+          {!scanMode && (
+            <>
+              <div style={{ fontSize: 10, color: C.muted, letterSpacing: 3, textTransform: "uppercase", marginBottom: 20 }}>O que deseja fazer?</div>
+              {[
+                { mode: "register", icon: "🍾", title: "Gostei deste vinho", desc: "Foto da garrafa. O agente identifica, pesquisa o preço e você confirma.", tag: "Por foto" },
+                { mode: "manual",   icon: "✍️", title: "Cadastrar manualmente", desc: "Digite o nome e as características do vinho para adicionar à adega.", tag: "Manual" },
+                { mode: "shelf",    icon: "🏪", title: "Estou numa loja",    desc: "Foto da prateleira. Top 5 recomendações com base no seu perfil.",        tag: "Recomendação" },
+                { mode: "menu",     icon: "🍽️", title: "Estou num restaurante", desc: "Foto da carta. Top 5 com melhor custo-benefício para o seu perfil.", tag: "Carta" },
+              ].map(item => (
+                <div key={item.mode} onClick={() => setScanMode(item.mode)} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, marginBottom: 10, cursor: "pointer", display: "flex", gap: 14, alignItems: "flex-start" }}>
+                  <div style={{ fontSize: 28, minWidth: 36, marginTop: 2 }}>{item.icon}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <div style={{ fontSize: 14, color: C.text }}>{item.title}</div>
+                      <Tag color={C.gold} bg={C.goldDim}>{item.tag}</Tag>
+                    </div>
+                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.6 }}>{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
+          {scanMode === "manual" && registerStep !== "priceConfirm" && !registerStep && (
+            <>
+              <button onClick={resetScan} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12, marginBottom: 20, padding: 0 }}>← Voltar</button>
+              <div style={{ fontSize: 10, color: C.muted, letterSpacing: 3, textTransform: "uppercase", marginBottom: 20 }}>Cadastrar vinho manualmente</div>
+              {[["Nome do vinho *","name","Ex: Almaviva 2019"],["Produtor","producer","Ex: Almaviva"],["Região","region","Ex: Maipo Valley"],["País","country","Ex: Chile"],["Uva(s)","grape","Ex: Cabernet Sauvignon / Carmenère"],["Safra","vintage","Ex: 2019"]].map(([label, key, placeholder]) => (
+                <div key={key} style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>{label}</div>
+                  <input value={registerData[key] || ""} onChange={e => setRegisterData(d => ({ ...d, [key]: e.target.value }))} placeholder={placeholder} style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px", color: C.text, fontSize: 13, boxSizing: "border-box" }} />
+                </div>
+              ))}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>Tipo</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {["Tinto","Branco","Espumante","Rosé"].map(t => <button key={t} onClick={() => setRegisterData(d => ({ ...d, type: t }))} style={{ flex: 1, padding: "9px 4px", background: registerData.type === t ? C.goldDim : C.surface, border: `1px solid ${registerData.type === t ? C.goldBorder : C.border}`, borderRadius: 8, color: registerData.type === t ? C.gold : C.muted, cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{t}</button>)}
+                </div>
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>Avaliação *</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {["Excelente","Bom","Interessante"].map(r => { const rc = ratingConfig[r]; return <button key={r} onClick={() => setRegisterData(d => ({ ...d, rating: r }))} style={{ flex: 1, padding: "9px 4px", background: registerData.rating === r ? rc.bg : C.surface, border: `1px solid ${registerData.rating === r ? rc.color : C.border}`, borderRadius: 8, color: registerData.rating === r ? rc.color : C.muted, cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>{r}</button>; })}
+                </div>
+              </div>
+              {error && <div style={{ fontSize: 13, color: C.red, marginBottom: 16, padding: "12px 14px", background: C.redBg, borderRadius: 8 }}>{error}</div>}
+              <Btn onClick={lookupPrice} disabled={!registerData.name || loading} full>{loading ? "Pesquisando preço..." : "🔍 Pesquisar preço e salvar"}</Btn>
+            </>
+          )}
+
+          {scanMode === "manual" && registerStep === "priceConfirm" && (
+            <>
+              <button onClick={() => setRegisterStep(null)} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12, marginBottom: 16, padding: 0 }}>← Voltar</button>
+              <div style={{ background: C.goldDim, border: `1px solid ${C.goldBorder}`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: 15, color: C.text, marginBottom: 4 }}>{registerData.name}</div>
+                <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>{registerData.region}, {registerData.country} · {registerData.grape} · {registerData.vintage}</div>
+                {registerData.sommelierNote && <div style={{ fontSize: 12, color: "#B0A090", fontStyle: "italic", lineHeight: 1.6 }}>"{registerData.sommelierNote}"</div>}
+              </div>
+              <PriceConfirm identified={registerData} registerData={registerData} setRegisterData={setRegisterData} />
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 5 }}>Notas pessoais</div>
+                <textarea value={registerData.notes || ""} onChange={e => setRegisterData(d => ({ ...d, notes: e.target.value }))} placeholder="O que achou? Ocasião, harmonização..." style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px", color: C.text, fontSize: 13, fontFamily: "inherit", resize: "none", minHeight: 72, boxSizing: "border-box" }} />
+              </div>
+              <Btn onClick={() => addWine({ ...registerData, status: registerData.status || "drink" })} disabled={!registerData.rating} full>Salvar na Adega</Btn>
+            </>
+          )}
+
+          {scanMode && scanMode !== "manual" && !image && (
+            <>
+              <button onClick={resetScan} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12, marginBottom: 20, padding: 0 }}>← Voltar</button>
+              <div onClick={() => fileRef.current?.click()} style={{ border: `1px dashed ${C.goldBorder}`, borderRadius: 16, padding: "48px 24px", textAlign: "center", cursor: "pointer", background: C.goldDim }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>📷</div>
+                <div style={{ fontSize: 14, color: C.gold, marginBottom: 8 }}>Toque para escolher foto</div>
+                <div style={{ fontSize: 11, color: C.muted }}>{scanMode === "register" ? "Rótulo frontal, boa iluminação" : scanMode === "shelf" ? "Foto aberta da prateleira" : "Carta aberta e legível"}</div>
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={e => handleFile(e.target.files[0])} />
+            </>
+          )}
+
+          {scanMode && image && !results && registerStep !== "confirm" && (
+            <>
+              <button onClick={resetScan} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12, marginBottom: 16, padding: 0 }}>← Voltar</button>
+              <img src={image} alt="preview" style={{ width: "100%", borderRadius: 12, marginBottom: 16, maxHeight: 260, objectFit: "cover", border: `1px solid ${C.border}` }} />
+              {error && <div style={{ fontSize: 13, color: C.red, marginBottom: 16, padding: "12px 14px", background: C.redBg, borderRadius: 8 }}>{error}</div>}
+              <Btn onClick={scanMode === "register" ? identifyBottle : analyzeShelf} disabled={loading} full>{loading ? "Analisando..." : scanMode === "register" ? "Identificar vinho" : "Analisar com Sommelier IA"}</Btn>
+              {loading && <div style={{ textAlign: "center", marginTop: 20, color: C.muted, fontSize: 12, lineHeight: 1.8 }}>Identificando rótulo...<br />Pesquisando preço de mercado...</div>}
+            </>
+          )}
+
+          {registerStep === "confirm" && identified && (
+            <>
+              <button onClick={() => { setRegisterStep(null); setIdentified(null); }} style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", fontSize: 12, marginBottom: 16, padding: 0 }}>← Voltar</button>
+              <div style={{ background: C.goldDim, border: `1px solid ${C.goldBorder}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
+                <div style={{ fontSize: 15, color: C.text, marginBottom: 4 }}>{identified.name}</div>
+                <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>{identified.region}, {identified.country} · {identified.grape} · {identified.vintage}</div>
+                {identified.sommelierNote && <div style={{ fontSize: 12, color: "#B0A090", fontStyle: "italic", lineHeight: 1.6 }}>"{identified.sommelierNote}"</div>}
+              </div>
+              <PriceConfirm identified={identified} registerData={registerData} setRegisterData={setRegisterData} />
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 10 }}>Sua avaliação</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {["Excelente","Bom","Interessante"].map(r => { const rc = ratingConfig[r]; return <button key={r} onClick={() => setRegisterData(d => ({ ...d, rating: r }))} style={{ flex: 1, padding: "11px 4px", background: registerData.rating === r ? rc.bg : C.surface, border: `1px solid ${registerData.rating === r ? rc.color : C.border}`, borderRadius: 10, color: registerData.rating === r ? rc.color : C.muted, cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>{r}</button>; })}
+                </div>
+              </div>
+              <textarea value={registerData.notes || ""} onChange={e => setRegisterData(d => ({ ...d, notes: e.target.value }))} placeholder="Nota pessoal (opcional)..." style={{ width: "100%", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px", color: C.text, fontSize: 13, fontFamily: "inherit", resize: "vertical", minHeight: 72, boxSizing: "border-box", marginBottom: 16 }} />
+              <Btn onClick={() => addWine({ ...identified, ...registerData })} disabled={!registerData.rating} full>Salvar na Adega</Btn>
+            </>
+          )}
+
+          {results && (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ fontSize: 10, color: C.muted, letterSpacing: 3, textTransform: "uppercase" }}>🏆 Top {Math.min(5, results.length)} sugestões</div>
+                <Btn onClick={resetScan} variant="ghost">Nova foto</Btn>
+              </div>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>{results.length} vinho{results.length !== 1 ? "s" : ""} identificado{results.length !== 1 ? "s" : ""} · ordenados por compatibilidade e custo-benefício</div>
+              <img src={image} alt="preview" style={{ width: "100%", borderRadius: 10, marginBottom: 16, maxHeight: 140, objectFit: "cover", opacity: 0.6, border: `1px solid ${C.border}` }} />
+              {(Array.isArray(results) ? results : [results]).slice(0, showAllResults ? results.length : 5).map((w, i) => (
+                <div key={i}>
+                  {i === 0 && <div style={{ fontSize: 9, color: C.gold, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>🥇 Melhor escolha</div>}
+                  {i === 1 && <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8, marginTop: 4 }}>Outras opções</div>}
+                  <ScanResultCard wine={w} onRegister={(wine) => { setIdentified({ name: wine.name, producer: wine.producer, region: wine.region, country: wine.country, type: wine.type, grape: wine.grape, vintage: wine.vintage, status: wine.status, sommelierNote: wine.matchReason, priceRetailMin: 0, priceRetailMax: 0 }); setRegisterData({ name: wine.name, producer: wine.producer, region: wine.region, country: wine.country, type: wine.type, grape: wine.grape, vintage: wine.vintage, status: wine.status }); setRegisterStep("confirm"); }} />
+                </div>
+              ))}
+              {results.length > 5 && !showAllResults && (
+                <Btn onClick={() => setShowAllResults(true)} variant="ghost" full>Ver mais {results.length - 5} vinho{results.length - 5 !== 1 ? "s" : ""}</Btn>
+              )}
+              {showAllResults && results.length > 5 && (
+                <Btn onClick={() => setShowAllResults(false)} variant="ghost" full>Ver menos</Btn>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, padding: "10px 24px 18px", background: `linear-gradient(0deg, ${C.bg} 60%, transparent)`, textAlign: "center" }}>
+        <div style={{ fontSize: 9, color: C.faint, letterSpacing: 3, textTransform: "uppercase" }}>Adega Virtual · Agente Sommelier</div>
+      </div>
+    </div>
+  );
+}
+
+
+ReactDOM.render(React.createElement(App), document.getElementById("root"));
+
+</script>
+</body>
+</html>
