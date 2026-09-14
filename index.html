@@ -244,7 +244,7 @@ function WineCard({ wine, expanded, onExpand, onEdit, onDelete }) {
   const sc = statusConfig[wine.status] || statusConfig.drink;
   const rc = ratingConfig[wine.rating] || ratingConfig["Bom"];
   return (
-    <SwipeDelete onDelete={() => onDelete(wine.id)}>
+    <div style={{ marginBottom: 10 }}>
       <div style={{ background: expanded ? C.goldDim : C.surface, border: `1px solid ${expanded ? C.goldBorder : C.border}`, borderRadius: 12, padding: 16 }}>
         <div onClick={onExpand} style={{ cursor: "pointer" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -272,18 +272,19 @@ function WineCard({ wine, expanded, onExpand, onEdit, onDelete }) {
           )}
         </div>
         {expanded && (
-          <div style={{ paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
+          <div style={{ paddingTop: 12, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Btn onClick={(e) => { e.stopPropagation(); onEdit(wine); }} variant="secondary" small>✏️ Editar</Btn>
+            <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Remover este vinho da adega?")) onDelete(wine.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, opacity: 0.6, padding: "4px 8px" }} title="Remover">🍷×</button>
           </div>
         )}
       </div>
-    </SwipeDelete>
+    </div>
   );
 }
 
 function WishCard({ wine, expanded, onExpand, onPromote, onDelete }) {
   return (
-    <SwipeDelete onDelete={() => onDelete(wine.id)}>
+    <div style={{ marginBottom: 10 }}>
       <div style={{ background: expanded ? "rgba(144,200,232,0.06)" : C.surface, border: `1px solid ${expanded ? "rgba(144,200,232,0.2)" : C.border}`, borderRadius: 12, padding: 16 }}>
         <div onClick={onExpand} style={{ cursor: "pointer" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -307,10 +308,13 @@ function WishCard({ wine, expanded, onExpand, onPromote, onDelete }) {
         {expanded && (
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
             <Btn onClick={() => onPromote(wine)} variant="green" full>✓ Provei — mover para Adega</Btn>
+            <div style={{ marginTop: 8, textAlign: "right" }}>
+              <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Remover da lista?")) onDelete(wine.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, opacity: 0.6, padding: "4px 8px" }} title="Remover">🍷×</button>
+            </div>
           </div>
         )}
       </div>
-    </SwipeDelete>
+    </div>
   );
 }
 
