@@ -191,55 +191,6 @@ function EditModal({ wine, onSave, onClose }) {
   );
 }
 
-function SwipeDelete({ onDelete, children }) {
-  const [offset, setOffset] = useState(0);
-  const [snap, setSnap] = useState(false);
-  const sx = useRef(null);
-  const sy = useRef(null);
-  const dir = useRef(null);
-  const BTN = 80;
-
-  const ts = (e) => { sx.current = e.touches[0].clientX; sy.current = e.touches[0].clientY; dir.current = null; setSnap(false); };
-  const tm = (e) => {
-    if (sx.current === null) return;
-    const dx = e.touches[0].clientX - sx.current;
-    const dy = Math.abs(e.touches[0].clientY - sy.current);
-    if (dir.current === null) {
-      if (Math.abs(dx) > 5 && Math.abs(dx) > dy) dir.current = "h";
-      else if (dy > 5) { dir.current = "v"; return; }
-      else return;
-    }
-    if (dir.current !== "h") return;
-    e.preventDefault();
-    setOffset(o => Math.min(0, Math.max(-BTN, o + (e.touches[0].clientX - sx.current))));
-    sx.current = e.touches[0].clientX;
-  };
-  const te = () => {
-    if (dir.current !== "h") return;
-    setSnap(true);
-    setOffset(o => o < -BTN / 2 ? -BTN : 0);
-  };
-  const del = () => { if (window.confirm("Remover este vinho?")) { setSnap(true); setOffset(0); onDelete(); } };
-
-  return (
-    <div style={{ marginBottom: 10, borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ display: "flex", width: `calc(100% + ${BTN}px)`, transform: `translateX(${offset}px)`, transition: snap ? "transform 0.2s ease" : "none" }}
-        onTouchStart={ts} onTouchMove={tm} onTouchEnd={te}>
-        <div style={{ flex: "0 0 100%", minWidth: 0 }}>
-          {children}
-        </div>
-        <div style={{ flex: `0 0 ${BTN}px`, background: "#1A0808", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", borderRadius: "0 12px 12px 0" }}
-          onClick={del}>
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 24, lineHeight: 1, marginBottom: 4 }}>🍷</div>
-            <div style={{ fontSize: 8, color: "#C4956A", letterSpacing: 2, textTransform: "uppercase" }}>remover</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function WineCard({ wine, expanded, onExpand, onEdit, onDelete }) {
   const sc = statusConfig[wine.status] || statusConfig.drink;
   const rc = ratingConfig[wine.rating] || ratingConfig["Bom"];
@@ -274,7 +225,7 @@ function WineCard({ wine, expanded, onExpand, onEdit, onDelete }) {
         {expanded && (
           <div style={{ paddingTop: 12, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Btn onClick={(e) => { e.stopPropagation(); onEdit(wine); }} variant="secondary" small>✏️ Editar</Btn>
-            <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Remover este vinho da adega?")) onDelete(wine.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, opacity: 0.6, padding: "4px 8px" }} title="Remover">🍷×</button>
+            <Btn onClick={(e) => { e.stopPropagation(); if (window.confirm("Remover este vinho da adega?")) onDelete(wine.id); }} variant="secondary" small>🍷 ×</Btn>
           </div>
         )}
       </div>
@@ -309,7 +260,7 @@ function WishCard({ wine, expanded, onExpand, onPromote, onDelete }) {
           <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${C.border}` }}>
             <Btn onClick={() => onPromote(wine)} variant="green" full>✓ Provei — mover para Adega</Btn>
             <div style={{ marginTop: 8, textAlign: "right" }}>
-              <button onClick={(e) => { e.stopPropagation(); if (window.confirm("Remover da lista?")) onDelete(wine.id); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, opacity: 0.6, padding: "4px 8px" }} title="Remover">🍷×</button>
+              <Btn onClick={(e) => { e.stopPropagation(); if (window.confirm("Remover da lista?")) onDelete(wine.id); }} variant="secondary" small>🍷 ×</Btn>
             </div>
           </div>
         )}
