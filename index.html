@@ -382,6 +382,62 @@ function App() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
+  // ── BACKUP ──
+  const backupRef = useRef();
+  const [lastBackup, setLastBackup] = useState(() => { try { return localStorage.getItem("adega-last-backup"); } catch { return null; } });
+
+  const exportBackup = useCallback(async () => {
+    const data = { app: "adega-virtual", version: 1, exportedAt: new Date().toISOString(), wines, wishlist };
+    const stamp = new Date().toISOString().slice(0, 10);
+    const fileName = `adega-backup-${stamp}.json`;
+    const json = JSON.stringify(data, null, 2);
+    const markDone = () => {
+      const now = new Date().toISOString();
+      try { localStorage.setItem("adega-last-backup", now); } catch {}
+      setLastBackup(now);
+    };
+    try {
+      const file = new File([json], fileName, { type: "application/json" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Backup Adega Virtual" });
+        markDone(); showToast("Backup gerado ✓");
+        return;
+      }
+    } catch (e) {
+      if (e && e.name === "AbortError") return; // usuário cancelou
+    }
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    markDone(); showToast("Backup baixado ✓");
+  }, [wines, wishlist]);
+
+  const importBackup = useCallback((e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!data || data.app !== "adega-virtual" || !Array.isArray(data.wines) || !Array.isArray(data.wishlist)) {
+          alert("Este arquivo não é um backup válido da Adega Virtual."); return;
+        }
+        const when = data.exportedAt ? new Date(data.exportedAt).toLocaleDateString("pt-BR") : "data desconhecida";
+        const ok = confirm(`Restaurar backup de ${when}?\n\n${data.wines.length} vinhos na adega e ${data.wishlist.length} na lista Para Provar.\n\nIsso SUBSTITUI os dados atuais (${wines.length} vinhos e ${wishlist.length} na lista).`);
+        if (!ok) return;
+        saveWines(data.wines); saveWishlist(data.wishlist);
+        showToast("Backup restaurado ✓");
+      } catch {
+        alert("Não consegui ler o arquivo. Confirme que é o .json exportado pelo app.");
+      }
+    };
+    reader.readAsText(file);
+  }, [wines, wishlist, saveWines, saveWishlist]);
+
   const addWine = useCallback((wine) => {
     saveWines([{ ...wine, id: genId(), date: new Date().toISOString().slice(0, 10) }, ...wines]);
     showToast("Vinho adicionado à adega ✓");
@@ -602,6 +658,22 @@ function App() {
               </div>
             </>
           )}
+
+          {/* ── BACKUP ── */}
+          <div style={{ marginTop: 32, padding: 16, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12 }}>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>Backup dos dados</div>
+            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 14 }}>
+              Seus vinhos ficam salvos só neste aparelho. Exporte um backup e guarde no iCloud Drive (app Arquivos).
+              <div style={{ marginTop: 6, color: lastBackup ? C.text : C.gold }}>
+                {lastBackup ? `Último backup: ${new Date(lastBackup).toLocaleDateString("pt-BR")}` : "Nenhum backup feito ainda."}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={exportBackup} style={{ flex: 1, padding: "12px 10px", background: C.gold, color: "#111", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>⬆︎ Exportar</button>
+              <button onClick={() => backupRef.current && backupRef.current.click()} style={{ flex: 1, padding: "12px 10px", background: "transparent", color: C.gold, border: `1px solid ${C.gold}`, borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>⬇︎ Restaurar</button>
+            </div>
+            <input ref={backupRef} type="file" onChange={importBackup} style={{ display: "none" }} />
+          </div>
         </div>
       )}
 
