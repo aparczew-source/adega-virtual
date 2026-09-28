@@ -346,6 +346,39 @@ function PriceConfirm({ identified, registerData, setRegisterData }) {
   );
 }
 
+function SyncPanel({ syncKey, status, lastSync, onConnect, onRetry, onChangeKey }) {
+  const [input, setInput] = useState("");
+  const box = { marginTop: 32, padding: 16, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12 };
+  const label = { fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 };
+  if (!syncKey) {
+    return (
+      <div style={box}>
+        <div style={label}>Sincronização na nuvem</div>
+        <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>Digite a chave de sincronização (a mesma cadastrada na Cloudflare). Só é preciso fazer isso uma vez por aparelho.</div>
+        <input value={input} onChange={e => setInput(e.target.value)} placeholder="Chave de sincronização" autoCapitalize="off" autoCorrect="off" style={{ width: "100%", boxSizing: "border-box", padding: "11px 12px", background: "transparent", border: `1px solid ${C.border}`, borderRadius: 10, color: C.text, fontSize: 16, marginBottom: 10 }} />
+        <button onClick={() => onConnect(input)} style={{ width: "100%", padding: "12px 10px", background: C.gold, color: "#111", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Ativar sincronização</button>
+      </div>
+    );
+  }
+  const msg = {
+    idle:    ["Conectando…", C.muted],
+    syncing: ["Sincronizando…", C.muted],
+    ok:      [`☁︎ Salvo na nuvem${lastSync ? " às " + lastSync.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""}`, "#7FB77E"],
+    error:   ["Sem conexão com a nuvem. Seus dados estão salvos no aparelho.", C.gold],
+    badkey:  ["Chave de sincronização incorreta.", "#D46A6A"],
+  }[status] || ["", C.muted];
+  return (
+    <div style={box}>
+      <div style={label}>Sincronização na nuvem</div>
+      <div style={{ fontSize: 13, color: msg[1], lineHeight: 1.5 }}>{msg[0]}</div>
+      <div style={{ display: "flex", gap: 14, marginTop: 10 }}>
+        {(status === "error" || status === "ok") && <button onClick={onRetry} style={{ background: "none", border: "none", color: C.gold, fontSize: 12, padding: 0, cursor: "pointer" }}>Sincronizar agora</button>}
+        {status === "badkey" && <button onClick={onChangeKey} style={{ background: "none", border: "none", color: C.gold, fontSize: 12, padding: 0, cursor: "pointer" }}>Digitar a chave de novo</button>}
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const [tab, setTab] = useState("cellar");
   const [wines, setWines] = useState([]);
@@ -368,17 +401,90 @@ function App() {
   const [toast, setToast] = useState(null);
   const fileRef = useRef();
 
+  // ── SINCRONIZAÇÃO NA NUVEM (Cloudflare) ──
+  const SYNC_URL = "https://adega-api.aparczew.workers.dev/data";
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  const [syncKey, setSyncKey] = useState(() => lsGet("adega-sync-key") || "");
+  const [syncStatus, setSyncStatus] = useState(syncKey ? "idle" : "off"); // off | idle | syncing | ok | error | badkey
+  const [lastSync, setLastSync] = useState(null);
+  const latest = useRef({ wines: [], wishlist: [] });
+  const pushTimer = useRef(null);
+
+  const pushCloud = useCallback(async (key) => {
+    const k = key || lsGet("adega-sync-key");
+    if (!k) return;
+    setSyncStatus("syncing");
+    try {
+      const updatedAt = lsGet("adega-updated-at") || new Date().toISOString();
+      lsSet("adega-updated-at", updatedAt);
+      const res = await fetch(SYNC_URL, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-Sync-Key": k },
+        body: JSON.stringify({ wines: latest.current.wines, wishlist: latest.current.wishlist, updatedAt })
+      });
+      if (res.status === 401) { setSyncStatus("badkey"); return; }
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      setSyncStatus("ok"); setLastSync(new Date());
+    } catch { setSyncStatus("error"); }
+  }, []);
+
+  const schedulePush = useCallback(() => {
+    if (!lsGet("adega-sync-key")) return;
+    clearTimeout(pushTimer.current);
+    pushTimer.current = setTimeout(() => pushCloud(), 800);
+  }, [pushCloud]);
+
+  // Ao abrir: usa o que está no aparelho e depois compara com a nuvem
+  const pullCloud = useCallback(async (key) => {
+    const k = key || lsGet("adega-sync-key");
+    if (!k) return;
+    setSyncStatus("syncing");
+    try {
+      const res = await fetch(SYNC_URL, { headers: { "X-Sync-Key": k } });
+      if (res.status === 401) { setSyncStatus("badkey"); return; }
+      if (res.status === 404) { await pushCloud(k); return; } // nuvem vazia: envia o do aparelho
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const cloud = await res.json();
+      const localAt = lsGet("adega-updated-at") || "";
+      if (cloud && Array.isArray(cloud.wines) && Array.isArray(cloud.wishlist) && (cloud.updatedAt || "") > localAt) {
+        latest.current = { wines: cloud.wines, wishlist: cloud.wishlist };
+        lsSet("adega-wines-v3", JSON.stringify(cloud.wines));
+        lsSet("adega-wishlist-v2", JSON.stringify(cloud.wishlist));
+        lsSet("adega-updated-at", cloud.updatedAt);
+        setWines(cloud.wines); setWishlist(cloud.wishlist);
+        setSyncStatus("ok"); setLastSync(new Date());
+      } else if ((cloud.updatedAt || "") < localAt) {
+        await pushCloud(k); // aparelho mais novo: atualiza a nuvem
+      } else { setSyncStatus("ok"); setLastSync(new Date()); }
+    } catch { setSyncStatus("error"); }
+  }, [pushCloud]);
+
   useEffect(() => {
     try {
       const sw  = localStorage.getItem("adega-wines-v3");
       const swl = localStorage.getItem("adega-wishlist-v2");
-      setWines(sw  ? JSON.parse(sw)  : INITIAL_WINES);
-      setWishlist(swl ? JSON.parse(swl) : INITIAL_WISHLIST);
-    } catch { setWines(INITIAL_WINES); setWishlist(INITIAL_WISHLIST); }
-  }, []);
+      const w  = sw  ? JSON.parse(sw)  : INITIAL_WINES;
+      const wl = swl ? JSON.parse(swl) : INITIAL_WISHLIST;
+      latest.current = { wines: w, wishlist: wl };
+      setWines(w); setWishlist(wl);
+    } catch { latest.current = { wines: INITIAL_WINES, wishlist: INITIAL_WISHLIST }; setWines(INITIAL_WINES); setWishlist(INITIAL_WISHLIST); }
+    pullCloud();
+    const onVisible = () => { if (document.visibilityState === "visible") pullCloud(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [pullCloud]);
 
-  const saveWines    = useCallback((list) => { try { localStorage.setItem("adega-wines-v3",    JSON.stringify(list)); } catch {} setWines(list); }, []);
-  const saveWishlist = useCallback((list) => { try { localStorage.setItem("adega-wishlist-v2", JSON.stringify(list)); } catch {} setWishlist(list); }, []);
+  const touch = () => lsSet("adega-updated-at", new Date().toISOString());
+  const saveWines    = useCallback((list) => { lsSet("adega-wines-v3",    JSON.stringify(list)); touch(); latest.current = { ...latest.current, wines: list };    setWines(list);    schedulePush(); }, [schedulePush]);
+  const saveWishlist = useCallback((list) => { lsSet("adega-wishlist-v2", JSON.stringify(list)); touch(); latest.current = { ...latest.current, wishlist: list }; setWishlist(list); schedulePush(); }, [schedulePush]);
+
+  const connectSync = useCallback(async (key) => {
+    const k = key.trim();
+    if (!k) return;
+    lsSet("adega-sync-key", k); setSyncKey(k);
+    await pullCloud(k);
+  }, [pullCloud]);
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
@@ -659,8 +765,11 @@ function App() {
             </>
           )}
 
+          {/* ── SINCRONIZAÇÃO ── */}
+          <SyncPanel syncKey={syncKey} status={syncStatus} lastSync={lastSync} onConnect={connectSync} onRetry={() => pullCloud()} onChangeKey={() => { lsSet("adega-sync-key", ""); setSyncKey(""); setSyncStatus("off"); }} />
+
           {/* ── BACKUP ── */}
-          <div style={{ marginTop: 32, padding: 16, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12 }}>
+          <div style={{ marginTop: 16, padding: 16, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12 }}>
             <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8 }}>Backup dos dados</div>
             <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 14 }}>
               Seus vinhos ficam salvos só neste aparelho. Exporte um backup e guarde no iCloud Drive (app Arquivos).
