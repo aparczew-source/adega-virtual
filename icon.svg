@@ -1,23 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <radialGradient id="bg" cx="50%" cy="40%" r="80%">
-      <stop offset="0" stop-color="#1C140E"/><stop offset="1" stop-color="#0A0705"/>
-    </radialGradient>
-    <radialGradient id="wax" cx="40%" cy="35%" r="70%">
-      <stop offset="0" stop-color="#A62A3C"/><stop offset=".7" stop-color="#6E1423"/><stop offset="1" stop-color="#4A0B16"/>
-    </radialGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#EBCB98"/><stop offset=".5" stop-color="#C4956A"/><stop offset="1" stop-color="#8E6440"/>
-    </linearGradient>
+    <clipPath id="bowl">
+      <path d="M299 192 H725 C747 469 640 597 512 597 C384 597 277 469 299 192 Z"/>
+    </clipPath>
   </defs>
-  <rect width="1024" height="1024" fill="url(#bg)"/>
-  <!-- lacre de cera, borda irregular -->
-  <path d="M512 170 C570 168 600 200 650 196 C700 192 740 232 770 262 C800 300 832 330 830 380 C828 430 856 470 850 520 C846 570 858 610 830 650 C804 690 800 730 760 766 C722 800 690 820 640 830 C590 842 560 858 512 856 C462 856 430 840 384 830 C334 820 300 800 264 766 C226 730 212 690 190 650 C166 606 176 566 172 520 C168 470 190 432 192 382 C194 332 222 300 256 262 C290 226 322 196 374 196 C424 196 456 170 512 170 Z" fill="url(#wax)"/>
-  <circle cx="512" cy="512" r="250" fill="none" stroke="url(#gold)" stroke-width="10"/>
-  <circle cx="512" cy="512" r="226" fill="none" stroke="url(#gold)" stroke-width="4" opacity=".7"/>
-  <!-- taça fina dentro do selo -->
-  <path d="M442 380 H582 C582 380 592 470 562 510 C546 532 530 540 512 541 C494 540 478 532 462 510 C432 470 442 380 442 380 Z" fill="none" stroke="url(#gold)" stroke-width="12" stroke-linejoin="round"/>
-  <path d="M456 470 C480 462 544 462 568 470 C562 498 548 528 512 532 C476 528 462 498 456 470 Z" fill="url(#gold)" opacity=".85"/>
-  <path d="M512 541 V630" stroke="#C4956A" stroke-width="12" stroke-linecap="round"/>
-  <path d="M462 640 C486 630 538 630 562 640" fill="none" stroke="#B88A5F" stroke-width="12" stroke-linecap="round"/>
+  <rect width="1024" height="1024" fill="#6B1826"/>
+  <rect x="250" y="363" width="524" height="260" fill="#E6C3BC" clip-path="url(#bowl)"/>
+  <path d="M299 192 H725 C747 469 640 597 512 597 C384 597 277 469 299 192 Z" fill="none" stroke="#F6F1E9" stroke-width="28" stroke-linejoin="round"/>
+  <rect x="496" y="597" width="32" height="200" fill="#F6F1E9"/>
+  <ellipse cx="512" cy="805" rx="150" ry="32" fill="#F6F1E9"/>
 </svg>
